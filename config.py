@@ -58,56 +58,14 @@ conf.registerChannelValue(Gogs, 'projects',
 conf.registerGroup(Gogs, 'format')
 
 conf.registerChannelValue(Gogs.format, 'push',
-    registry.String(_("""\x02[{project[name]}]\x02 {user_name} pushed \x02{total_commits_count} commit(s)\x02 to \x02{ref}\x02:"""),
+    registry.String(_("""\x02[{repository[name]}]\x02 {pusher[name]} pushed \x02{total_commits_count} commit(s)\x02 to \x02{repository[name]} {ref}\x02:"""),
                     _("""Format for push events.""")))
 conf.registerChannelValue(Gogs.format, 'commit',
-    registry.String(_("""\x02[{project[name]}]\x02 {short_id} \x02{short_message}\x02 by {author[name]}"""),
+    registry.String(_("""\x02[{repository[name]}]\x02 {short_id} \x02{short_message}\x02 by {author[name]}"""),
                     _("""Format for commits.""")))
 
-conf.registerChannelValue(Gogs.format, 'tag',
-    registry.String(_("""\x02[{project[name]}]\x02 {user_name} created a new tag {ref}"""),
+conf.registerChannelValue(Gogs.format, 'create',
+    registry.String(_("""\x02[{repository[name]}]\x02 {pusher[name]} created a new tag {ref}"""),
                     _("""Format for tag push events.""")))
-
-conf.registerChannelValue(Gogs.format, 'issue-open',
-    registry.String(_("""\x02[{project[name]}]\x02 Issue \x02#{issue[id]} {issue[title]}\x02 created by {user[name]} {issue[url]}"""),
-                    _("""Format for issue/open events.""")))
-conf.registerChannelValue(Gogs.format, 'issue-update',
-    registry.String(_("""\x02[{project[name]}]\x02 Issue \x02#{issue[id]} {issue[title]}\x02 updated by {user[name]} {issue[url]}"""),
-                    _("""Format for issue/update events.""")))
-conf.registerChannelValue(Gogs.format, 'issue-close',
-    registry.String(_("""\x02[{project[name]}]\x02 Issue \x02#{issue[id]} {issue[title]}\x02 closed by {user[name]} {issue[url]}"""),
-                    _("""Format for issue/close events.""")))
-conf.registerChannelValue(Gogs.format, 'issue-reopen',
-    registry.String(_("""\x02[{project[name]}]\x02 Issue \x02#{issue[id]} {issue[title]}\x02 reopend by {user[name]} {issue[url]}"""),
-                    _("""Format for issue/reopen events.""")))
-
-conf.registerChannelValue(Gogs.format, 'merge-request-open',
-    registry.String(_("""\x02[{project[name]}]\x02 Merge request \x02#{merge_request[id]} {merge_request[title]}\x02 created by {user[name]} {merge_request[url]}"""),
-                    _("""Format for merge-request/open events.""")))
-conf.registerChannelValue(Gogs.format, 'merge-request-update',
-    registry.String(_("""\x02[{project[name]}]\x02 Merge request \x02#{merge_request[id]} {merge_request[title]}\x02 updated by {user[name]} {merge_request[url]}"""),
-                    _("""Format for merge-request/open events.""")))
-conf.registerChannelValue(Gogs.format, 'merge-request-close',
-    registry.String(_("""\x02[{project[name]}]\x02 Merge request \x02#{merge_request[id]} {merge_request[title]}\x02 closed by {user[name]} {merge_request[url]}"""),
-                    _("""Format for merge-request/open events.""")))
-conf.registerChannelValue(Gogs.format, 'merge-request-reopen',
-    registry.String(_("""\x02[{project[name]}]\x02 Merge request \x02#{merge_request[id]} {merge_request[title]}\x02 reopened by {user[name]} {merge_request[url]}"""),
-                    _("""Format for merge-request/open events.""")))
-conf.registerChannelValue(Gogs.format, 'merge-request-merge',
-    registry.String(_("""\x02[{project[name]}]\x02 Merge request \x02#{merge_request[id]} {merge_request[title]}\x02 merged by {user[name]} {merge_request[url]}"""),
-                    _("""Format for merge-request/open events.""")))
-
-conf.registerChannelValue(Gogs.format, 'note-merge-request',
-    registry.String(_("""\x02[{project[name]}]\x02 {user[name]} commented on Merge request \x02#{merge_request[id]} {merge_request[title]}\x02 {note[url]}"""),
-                    _("""Format for note/merge-request events.""")))
-conf.registerChannelValue(Gogs.format, 'note-commit',
-    registry.String(_("""\x02[{project[name]}]\x02 {user[name]} commented on Commit \x02#{commit[id]}\x02 {commit[url]}"""),
-                    _("""Format for note/commit events.""")))
-conf.registerChannelValue(Gogs.format, 'note-issue',
-    registry.String(_("""\x02[{project[name]}]\x02 {user[name]} commented on Issue \x02#{issue[id]} {issue[title]}\x02 {note[url]}"""),
-                    _("""Format for note/issue events.""")))
-conf.registerChannelValue(Gogs.format, 'note-snippet',
-    registry.String(_("""\x02[{project[name]}]\x02 {user[name]} commented on Snippet \x02#{snippet[id]} {snippet[title]}\x02 {note[url]}"""),
-                    _("""Format for note/snippet events.""")))
 
 # vim:set shiftwidth=4 tabstop=4 expandtab textwidth=79:
