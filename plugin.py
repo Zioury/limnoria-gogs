@@ -39,7 +39,7 @@ import supybot.httpserver as httpserver
 try:
     from supybot.i18n import PluginInternationalization
     from supybot.i18n import internationalizeDocstring
-    _ = PluginInternationalization('Gitlab')
+    _ = PluginInternationalization('Gogs')
 except ImportError:
     # Placeholder that allows to run the plugin on a bot
     # without the i18n module
@@ -50,23 +50,25 @@ except ImportError:
         return x
 
 
-class GitlabHandler(object):
+class GogsHandler(object):
 
-    """Handle gitlab messages"""
+    """Handle Gogs messages"""
 
     def __init__(self, plugin, irc):
         self.irc = irc
         self.plugin = plugin
-        self.log = log.getPluginLogger('Gitlab')
+        self.log = log.getPluginLogger('Gogs')
 
     def handle_payload(self, headers, payload):
-        if 'X-Gitlab-Event' not in headers:
-            self.log.info('Invalid header: Missing X-Gitlab-Event entry')
+        print(str(headers))
+        print(str(payload))
+        if 'X-Gogs-Event' not in headers:
+            self.log.info('Invalid header: Missing X-Gogs-Event entry')
             return
 
-        event_type = headers['X-Gitlab-Event']
-        if event_type not in ['Push Hook', 'Tag Push Hook', 'Note Hook', 'Issue Hook', 'Merge Request Hook']:
-            self.log.info('Unsupported X-Gitlab-Event type')
+        event_type = headers['X-Gogs-Event']
+        if event_type not in ['push', 'create']:
+            self.log.info('Unsupported X-Gogs-Event type')
             return
 
         # Check if any channel has subscribed to this project
@@ -74,116 +76,36 @@ class GitlabHandler(object):
             projects = self.plugin._load_projects(channel)
             for slug, url in projects.items():
                 # Parse project url
-                if event_type == 'Push Hook' or event_type == 'Tag Push Hook' or event_type == 'Note Hook':
-                    if url != payload['repository']['homepage']:
-                        continue
-                elif event_type == 'Issue Hook':
-                    if url not in payload['object_attributes']['url']:
-                        continue
-                elif event_type == 'Merge Request Hook':
-                    if url not in payload['object_attributes']['target']['http_url']:
+                if event_type == 'push' or event_type == 'create':
+                    if url != payload['repository']['url']:
                         continue
                 else:
                     continue
 
-                # Update payload
-                payload['project'] = {
-                    'name': slug,
-                    'url': url
-                }
-
-                if event_type == 'Issue Hook':
-                    payload['project']['id'] = payload[
-                        'object_attributes']['project_id']
-                elif event_type == 'Merge Request Hook':
-                    payload['project']['id'] = payload[
-                        'object_attributes']['target_project_id']
-                else:
-                    payload['project']['id'] = payload['project_id']
-
                 # Handle types
-                if event_type == 'Push Hook':
+                if event_type == 'push':
                     self._push_hook(channel, payload)
-                elif event_type == 'Tag Push Hook':
+                elif event_type == 'create':
                     self._tag_push_hook(channel, payload)
-                elif event_type == 'Issue Hook':
-                    self._issue_hook(channel, payload)
-                elif event_type == 'Note Hook':
-                    self._note_hook(channel, payload)
-                elif event_type == 'Merge Request Hook':
-                    self._merge_request_hook(channel, payload)
 
     def _push_hook(self, channel, payload):
         # Send general message
+        payload['total_commits_count'] = len(payload['commits'])
         msg = self._build_message(channel, 'push', payload)
         self._send_message(channel, msg)
 
         # Send commits
         for commit in payload['commits']:
-            commit['project'] = {
-                'id': payload['project_id'],
-                'name': payload['project']['name'],
-                'url': payload['project']['url']
+            commit['repository'] = {
+                'id': payload['repository']['id'],
+                'name': payload['repository']['name'],
+                'url': payload['repository']['url']
             }
             commit['short_message'] = commit['message'].splitlines()[0]
             commit['short_id'] = commit['id'][0:10]
 
             msg = self._build_message(channel, 'commit', commit)
             self._send_message(channel, msg)
-
-    def _tag_push_hook(self, channel, payload):
-        msg = self._build_message(channel, 'tag', payload)
-        self._send_message(channel, msg)
-
-        # Send commits
-        for commit in payload['commits']:
-            commit['project'] = {
-                'id': payload['project_id'],
-                'name': payload['project']['name'],
-                'url': payload['project']['url']
-            }
-            commit['short_message'] = commit['message'].splitlines()[0]
-            commit['short_id'] = commit['id'][0:10]
-
-            msg = self._build_message(channel, 'commit', commit)
-            self._send_message(channel, msg)
-
-    def _note_hook(self, channel, payload):
-        noteable_type = payload['object_attributes']['noteable_type']
-        if noteable_type not in ['Commit', 'MergeRequest', 'Issue', 'Snippet']:
-            self.log.info("Unsupported note type '%s'" % noteable_type)
-            return
-
-        noteable_type = noteable_type.lower()
-        if noteable_type == "mergerequest":
-            noteable_type = "merge-request"
-
-        payload['note'] = payload['object_attributes']
-
-        msg = self._build_message(channel, 'note-' + noteable_type, payload)
-        self._send_message(channel, msg)
-
-    def _issue_hook(self, channel, payload):
-        action = payload['object_attributes']['action']
-        if action not in ['open', 'update', 'close', 'reopen']:
-            self.log.info("Unsupported issue action '%s'" % action)
-            return
-
-        payload['issue'] = payload['object_attributes']
-
-        msg = self._build_message(channel, 'issue-' + action, payload)
-        self._send_message(channel, msg)
-
-    def _merge_request_hook(self, channel, payload):
-        action = payload['object_attributes']['action']
-        if action not in ['open', 'update', 'close', 'reopen', 'merge']:
-            self.log.info("Unsupported issue action '%s'" % action)
-            return
-
-        payload['merge_request'] = payload['object_attributes']
-
-        msg = self._build_message(channel, 'merge-request-' + action, payload)
-        self._send_message(channel, msg)
 
     def _build_message(self, channel, format_string_identifier, args):
         format_string = str(
@@ -199,15 +121,15 @@ class GitlabHandler(object):
         self.irc.queueMsg(priv_msg)
 
 
-class GitlabWebHookService(httpserver.SupyHTTPServerCallback):
+class GogsWebHookService(httpserver.SupyHTTPServerCallback):
     """https://gitlab.com/gitlab-org/gitlab-ce/blob/master/doc/web_hooks/web_hooks.md"""
 
-    name = "GitlabWebHookService"
+    name = "GogsWebHookService"
     defaultResponse = """This plugin handles only POST request, please don't use other requests."""
 
     def __init__(self, plugin, irc):
-        self.log = log.getPluginLogger('Gitlab')
-        self.gitlab = GitlabHandler(plugin, irc)
+        self.log = log.getPluginLogger('Gogs')
+        self.gogs = GogsHandler(plugin, irc)
         self.plugin = plugin
         self.irc = irc
 
@@ -252,7 +174,7 @@ class GitlabWebHookService(httpserver.SupyHTTPServerCallback):
             return
 
         try:
-            self.gitlab.handle_payload(headers, payload)
+            self.gogs.handle_payload(headers, payload)
         except Exception as e:
             self.log.info(e)
             self._send_error(handler, _('Error: Invalid data sent.'))
@@ -262,23 +184,23 @@ class GitlabWebHookService(httpserver.SupyHTTPServerCallback):
         self._send_ok(handler)
 
 
-class Gitlab(callbacks.Plugin):
-    """Plugin for communication and notifications of a Gitlab project
+class Gogs(callbacks.Plugin):
+    """Plugin for communication and notifications of a Gogs project
     management tool instance"""
     threaded = True
 
     def __init__(self, irc):
         global instance
-        super(Gitlab, self).__init__(irc)
+        super(Gogs, self).__init__(irc)
         instance = self
 
-        callback = GitlabWebHookService(self, irc)
-        httpserver.hook('gitlab', callback)
+        callback = GogsWebHookService(self, irc)
+        httpserver.hook('gogs', callback)
 
     def die(self):
-        httpserver.unhook('gitlab')
+        httpserver.unhook('gogs')
 
-        super(Gitlab, self).die()
+        super(Gogs, self).die()
 
     def _load_projects(self, channel):
         projects = self.registryValue('projects', channel)
@@ -297,8 +219,8 @@ class Gitlab(callbacks.Plugin):
             irc.errorNoCapability('admin')
             return False
 
-    class gitlab(callbacks.Commands):
-        """Gitlab commands"""
+    class gogs(callbacks.Commands):
+        """Gogs commands"""
 
         class project(callbacks.Commands):
             """Project commands"""
@@ -371,7 +293,7 @@ class Gitlab(callbacks.Plugin):
             list = wrap(list, ['channel'])
 
 
-Class = Gitlab
+Class = Gogs
 
 
 # vim:set shiftwidth=4 softtabstop=4 expandtab textwidth=79:

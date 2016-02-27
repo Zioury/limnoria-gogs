@@ -29,7 +29,7 @@
 ###
 
 """
-Gitlab: Plugin for communication and notifications with a Gitlab instance
+Gogs: Plugin for communication and notifications with a Gogs instance
 """
 
 import supybot
