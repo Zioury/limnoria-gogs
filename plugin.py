@@ -79,7 +79,7 @@ class GogsHandler(object):
             for slug, url in projects.items():
                 # Parse project url
                 if event_type == 'push' or event_type == 'create':
-                    if url != payload['repository']['http_url']:
+                    if url != payload['repository']['html_url']:
                         continue
                 else:
                     continue
@@ -101,7 +101,7 @@ class GogsHandler(object):
             commit['repository'] = {
                 'id': payload['repository']['id'],
                 'name': payload['repository']['name'],
-                'url': payload['repository']['http_url']
+                'url': payload['repository']['html_url']
             }
             commit['short_message'] = commit['message'].splitlines()[0]
             commit['short_id'] = commit['id'][0:10]
