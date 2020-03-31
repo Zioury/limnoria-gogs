@@ -36,6 +36,7 @@ import supybot.ircmsgs as ircmsgs
 import supybot.callbacks as callbacks
 import supybot.log as log
 import supybot.httpserver as httpserver
+import supybot.world as world
 try:
     from supybot.i18n import PluginInternationalization
     from supybot.i18n import internationalizeDocstring
@@ -54,17 +55,18 @@ class GogsHandler(object):
 
     """Handle Gogs messages"""
 
-    def __init__(self, plugin, irc):
-        self.irc = irc
+    def __init__(self, plugin):
+        # HACK: instead of refactoring everything, I can just replace this with each handle_payload() call.
+        self.irc = None
         self.plugin = plugin
         self.log = log.getPluginLogger('Gogs')
 
-    def handle_payload(self, headers, payload):
-        print(str(headers))
-        print(str(payload))
+    def handle_payload(self, headers, payload, irc):
         if 'X-Gogs-Event' not in headers:
             self.log.info('Invalid header: Missing X-Gogs-Event entry')
             return
+        self.irc = irc
+        self.log.debug('Gogs: running on network %r', irc.network)
 
         event_type = headers['X-Gogs-Event']
         if event_type not in ['push', 'create']:
@@ -72,12 +74,12 @@ class GogsHandler(object):
             return
 
         # Check if any channel has subscribed to this project
-        for channel in self.irc.state.channels.keys():
+        for channel in irc.state.channels.keys():
             projects = self.plugin._load_projects(channel)
             for slug, url in projects.items():
                 # Parse project url
                 if event_type == 'push' or event_type == 'create':
-                    if url != payload['repository']['url']:
+                    if url != payload['repository']['http_url']:
                         continue
                 else:
                     continue
@@ -86,7 +88,7 @@ class GogsHandler(object):
                 if event_type == 'push':
                     self._push_hook(channel, payload)
                 elif event_type == 'create':
-                    self._tag_push_hook(channel, payload)
+                    self._create_push_hook(channel, payload)
 
     def _push_hook(self, channel, payload):
         # Send general message
@@ -99,13 +101,17 @@ class GogsHandler(object):
             commit['repository'] = {
                 'id': payload['repository']['id'],
                 'name': payload['repository']['name'],
-                'url': payload['repository']['url']
+                'url': payload['repository']['http_url']
             }
             commit['short_message'] = commit['message'].splitlines()[0]
             commit['short_id'] = commit['id'][0:10]
 
             msg = self._build_message(channel, 'commit', commit)
             self._send_message(channel, msg)
+            
+    def _create_push_hook(self, channel, payload):
+        msg = self._build_message(channel, 'create', payload)
+        self._send_message(channel, msg)
 
     def _build_message(self, channel, format_string_identifier, args):
         format_string = str(
@@ -117,8 +123,11 @@ class GogsHandler(object):
         return msg
 
     def _send_message(self, channel, msg):
-        priv_msg = ircmsgs.privmsg(channel, msg)
-        self.irc.queueMsg(priv_msg)
+        if self.plugin.registryValue('use-notices', channel):
+            announce_msg = ircmsgs.notice(channel, msg)
+        else:
+            announce_msg = ircmsgs.privmsg(channel, msg)
+        self.irc.queueMsg(announce_msg)
 
 
 class GogsWebHookService(httpserver.SupyHTTPServerCallback):
@@ -127,11 +136,10 @@ class GogsWebHookService(httpserver.SupyHTTPServerCallback):
     name = "GogsWebHookService"
     defaultResponse = """This plugin handles only POST request, please don't use other requests."""
 
-    def __init__(self, plugin, irc):
+    def __init__(self, plugin):
         self.log = log.getPluginLogger('Gogs')
-        self.gogs = GogsHandler(plugin, irc)
+        self.gogs = GogsHandler(plugin)
         self.plugin = plugin
-        self.irc = irc
 
     def _send_error(self, handler, message):
         handler.send_response(403)
@@ -149,19 +157,18 @@ class GogsWebHookService(httpserver.SupyHTTPServerCallback):
         headers = dict(self.headers)
 
         network = None
-        channel = None
 
         try:
             information = path.split('/')[1:]
             network = information[0]
-            channel = '#' + information[1]
         except IndexError:
             self._send_error(handler, _("""Error: You need to provide the
-                                        network name and the channel in
-                                        url."""))
+                                        network name in the URL."""))
             return
-
-        if self.irc.network != network or channel not in self.irc.state.channels:
+        
+        irc = world.getIrc(network)
+        if irc is None:
+            self._send_error(handler, (_('Error: Unknown network %r') % network))
             return
 
         # Handle payload
@@ -174,7 +181,7 @@ class GogsWebHookService(httpserver.SupyHTTPServerCallback):
             return
 
         try:
-            self.gogs.handle_payload(headers, payload)
+            self.gogs.handle_payload(headers, payload, irc)
         except Exception as e:
             self.log.info(e)
             self._send_error(handler, _('Error: Invalid data sent.'))
@@ -191,16 +198,16 @@ class Gogs(callbacks.Plugin):
 
     def __init__(self, irc):
         global instance
-        super(Gogs, self).__init__(irc)
+        self.__parent = super(Gogs, self)
+        self.__parent.__init__(irc)
         instance = self
 
-        callback = GogsWebHookService(self, irc)
+        callback = GogsWebHookService(self)
         httpserver.hook('gogs', callback)
 
     def die(self):
         httpserver.unhook('gogs')
-
-        super(Gogs, self).die()
+        self.__parent.die()
 
     def _load_projects(self, channel):
         projects = self.registryValue('projects', channel)
