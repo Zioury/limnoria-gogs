@@ -29,19 +29,17 @@ Depending on the configuration of your Limnoria instance and your web server the
 plugin now listens on the following address where it accepts the network and the
 channel as a parameter:
 
-`http://<host>:<port>/gogs/<network>/<channel>`
+`http://<host>:<port>/gogs/<network>`
 
 The placeholders are defined as followed:
 
   - `<host>` - The host defined by the external IP of the service
   - `<port>` - The port that the HTTP server of Limnoria listens to
   - `<network>` - The network that the Limnoria instance is connected to
-  - `<channel>` - The channel that the Limnoria instance is in
 
-For instance if your bot is in the _OFTC_ network and in the _#limnoria-gogs_
-channel, the plugin listens on the following URL for webhook notifications:
+For instance if your bot is in the _OFTC_ network, the plugin listens on the following URL for webhook notifications:
 
-`http://limnoria.example.com:8080/gogs/OFTC/limnoria-gogs`
+`http://limnoria.example.com:8080/gogs/OFTC`
 
 Now you need to add this address as a new webhook in the project settings of
 your Gogs instance. Therefore you go to `Settings -> Webhooks`
@@ -74,26 +72,13 @@ The following option can be set for each channel and defines the list of subscri
 
 In addition all the formats that are used to notify the channel about changes on the Gogs project can be configured:
 
-- `plugins.Gogs.format.push` - The format that is used if a milestone has been created
-- `plugins.Gogs.format.commit` - The format that is used if a milestone has been deleted
-- `plugins.Gogs.format.tag` - The format that is used if a milestone has been changed
-- `plugins.Gogs.format.issue-open` - The format that is used if an issue has been created
-- `plugins.Gogs.format.issue-update` - The format that is used if an issue has been updated
-- `plugins.Gogs.format.issue-close` - The format that is used if an issue has been closed
-- `plugins.Gogs.format.issue-reopen` - The format that is used if an issue has been reopened
-- `plugins.Gogs.format.merge-request-open` - The format that is used if an merge request has been created
-- `plugins.Gogs.format.merge-request-update` - The format that is used if an merge request has been updated
-- `plugins.Gogs.format.merge-request-close` - The format that is used if an merge request has been closed
-- `plugins.Gogs.format.merge-request-reopen` - The format that is used if an merge request has been reopened
-- `plugins.Gogs.format.merge-request-merge` - The format that is used if an merge request has been merged
-- `plugins.Gogs.format.note-merge-request` - The format that is used if someone commented on a merge request
-- `plugins.Gogs.format.note-commit` - The format that is used if someone commented on a commit
-- `plugins.Gogs.format.note-issue` - The format that is used if someone commented on a issue
-- `plugins.Gogs.format.note-snippet` - The format that is used if someone commented on a snippet
+- `plugins.Gogs.format.push` - The format that is used if a milestone has been changed
+- `plugins.Gogs.format.commit` - The format that is used if to list commits of a changed milestone
+- `plugins.Gogs.format.create` - The format that is used if a milestone has been created
 
 For those formats you can pass different arguments that contain the values of the notification. The default values are:
 
 - The data of the payload as described
-  [here](https://gogs.com/gogs-org/gogs-ce/blob/master/doc/web_hooks/web_hooks.md)
+  [here](https://gogs.io/docs/features/webhook)
 - `project` - The project containing the *name* and the *id* of the project
 - `url` - The direct url to the data described by this notification
