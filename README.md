@@ -4,7 +4,7 @@ limnoria-gogs is a plugin for [limnoria](https://github.com/ProgVal/Limnoria)
 that provides support for [gogs](https://gogs.com) webhook notifications.
 Currently it has the following features:
 
-  - Support of push, tag, issue, comment and merge request events
+  - Support of push and create events
   - Commands to manage subscribed projects per channel
   - Localization
 
